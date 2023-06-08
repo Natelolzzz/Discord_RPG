@@ -41,16 +41,19 @@ def player_exists(player_id):
 
 def create_player(player_id):
     player = {
-        'id': player_id,
-        'name': None,
-        'level': 1,
-        'experience': 0,
-        'health': 100,
-        'max_health': 100,
-        'inventory': [],
-        'currency': 0,
-        'party': []
-    }
+    'id': player_id,
+    'name': None,
+    'level': 1,
+    'experience': 0,
+    'health': 100,
+    'max_health': 100,
+    'inventory': [],
+    'currency': 0,
+    'party': [],
+    'min_damage': 5,  # Minimum damage stat
+    'max_damage': 15,  # Maximum damage stat
+    'defense': 0  # Defense stat
+}
     database = load_database()
     database['players'][player_id] = player
     save_database(database)
@@ -70,8 +73,9 @@ def add_item(player_id, item):
         inventory.append(item)  # Add the item to the player's inventory
         if item['type'] == 'currency':
             player['currency'] += item['value']  # Update the currency value
+        elif item['type'] in ['weapon', 'armor']:
+            equip_item(player_id, item)  # Equip the item
         save_database(database)
-
 
 def remove_item(player_id, item):
     player = get_player(player_id)
@@ -81,6 +85,15 @@ def remove_item(player_id, item):
         ]
         save_database(load_database())
 
+def equip_item(player_id, item):
+    player = get_player(player_id)
+    if player:
+        item_type = item.get('type', '')
+        if item_type == 'weapon':
+            player['max_damage'] += item.get('value', 0)
+        elif item_type == 'armor':
+            player['defense'] += item.get('value', 0)
+        save_database(load_database())
 
 @bot.event
 async def on_ready():
@@ -171,16 +184,14 @@ async def battle(ctx):
         party_rewards = {member_id: {'damage': 0, 'rewards': []} for member_id in party_members}
 
         while player['health'] > 0 and monster['health'] > 0:
-            monster_damage = random.randint(5, 12)
-
             for member_id in party_members:
-                member = get_player(member_id)
-                if member:
-                    member_damage = random.randint(5, 15)
-                    monster['health'] -= member_damage
-                    party_rewards[member_id]['damage'] += member_damage
-
-            player['health'] -= monster_damage
+              member = get_player(member_id)
+              if member:
+                member_damage = random.randint(monster['min_damage'], monster['max_damage'])
+                member_damage -= member['defense']
+                member_damage = max(0, member_damage)  # Ensure damage doesn't go below zero
+                member['health'] -= member_damage
+              party_rewards[member_id]['damage'] += member_damage
 
             player_health_percentage = player['health'] / player['max_health'] * 100
             monster_health_percentage = monster['health'] / monster['max_health'] * 100
@@ -243,34 +254,6 @@ async def battle(ctx):
     else:
         await ctx.send(f'<@{player_id}>, you need to create a character using the `create` command first!')
 
-@bot.command(name='inventory')
-async def inventory(ctx):
-    player_id = str(ctx.author.id)
-    if player_exists(player_id):
-        player = get_player(player_id)
-        if 'inventory' in player and player['inventory']:
-            embed = discord.Embed(
-                title='Inventory', color=discord.Color.blue())
-            for item in player['inventory']:
-                embed.add_field(name=item, value='-', inline=False)
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send(f'<@{player_id}>, your inventory is empty!')
-    else:
-        await ctx.send(f'<@{player_id}>, you need to create a character first!')
-
-
-@bot.command(name='currency')
-async def currency(ctx):
-    player_id = str(ctx.author.id)
-    if player_exists(player_id):
-        player = get_player(player_id)
-        currency = player.get('currency', 0)
-        await ctx.send(f'<@{player_id}>, your current currency balance is {currency}.')
-    else:
-        await ctx.send(f'<@{player_id}>, you need to create a character first!')
-
-
 @bot.command(name='use')
 async def use(ctx, item_name):
     player_id = str(ctx.author.id)
@@ -307,7 +290,7 @@ async def delete(ctx):
 async def shop(ctx):
     player_id = ctx.author.id
     player = get_player(player_id)  # Assuming there's a function to get the player data
-    
+
     if player:
         items = [
             {
@@ -327,6 +310,18 @@ async def shop(ctx):
                 'type': 'healing',
                 'value': 100,
                 'price': 200
+            },
+            {
+                'name': 'Sword of Strength',
+                'type': 'weapon',
+                'value': 5,
+                'price': 500
+            },
+            {
+                'name': 'Shield of Defense',
+                'type': 'armor',
+                'value': 10,
+                'price': 500
             }
         ]
         embed = discord.Embed(
@@ -336,8 +331,7 @@ async def shop(ctx):
             item_name = item.get('name', 'Unnamed Item')
             item_type = item.get('type', 'Unknown Type')
             item_price = item.get('price', 0)
-            embed.add_field(name=item_name, value=f'Type: {item_type}\nPrice: {item_price}', inline=False)
-
+            embed.add_field(name=item_name, value=f'Type: {item_type}\nPrice')
         await ctx.send(embed=embed)
         await ctx.send(f'<@{player_id}>, type the name of the item you want to buy.')
 
@@ -367,5 +361,43 @@ async def shop(ctx):
         await ctx.send(f'<@{player_id}>, the {item_name} is not available in the shop.')
     else:
         await ctx.send(f'<@{player_id}>, you need to create a character first!')
+
+@bot.command()
+async def profile(ctx):
+    player_id = str(ctx.author.id)
+    player = get_player(player_id)
+    if player:
+        embed = Embed(title="Your Profile", color=discord.Color.blue())
+        embed.add_field(name="Name", value=player['name'], inline=True)
+        embed.add_field(name="Level", value=player['level'], inline=True)
+        embed.add_field(name="Experience", value=player['experience'], inline=True)
+        embed.add_field(name="Health", value=f"{player['health']}/{player['max_health']}", inline=True)
+        embed.add_field(name="Currency", value=player['currency'], inline=True)
+        if player['inventory']:
+            inventory = ', '.join(player['inventory'])
+        else:
+            inventory = "Empty"
+        embed.add_field(name="Inventory", value=inventory, inline=False)
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send("You are not registered as a player.")
+
+async def party(ctx, player_id, member_id):
+    database = load_database()
+    player = database['players'].get(player_id)
+    member = database['players'].get(member_id)
+
+    if player and member:
+        if member_id == player_id:
+            await ctx.send("You cannot add yourself to your own party.")
+        elif member_id in player['party']:
+            await ctx.send("This player is already in your party.")
+        else:
+            player['party'].append(member_id)
+            database['players'][player_id] = player
+            save_database(database)
+            await ctx.send(f"<@{member_id}> has joined <@{player_id}>'s party.")
+    else:
+        await ctx.send("Invalid player IDs.")
 
 bot.run(os.environ['DISCORD_TOKEN'])
