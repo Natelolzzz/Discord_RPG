@@ -5,6 +5,8 @@ import random
 import os
 import asyncio
 
+# INCREMENT THIS COUNTER FOR EVERY HOUR OF TIME YOUVE WASTED HERE: 17
+
 bot = commands.Bot(command_prefix='/')
 DATABASE_FILE = 'database.json'
 
@@ -41,19 +43,19 @@ def player_exists(player_id):
 
 def create_player(player_id):
     player = {
-    'id': player_id,
-    'name': None,
-    'level': 1,
-    'experience': 0,
-    'health': 100,
-    'max_health': 100,
-    'inventory': [],
-    'currency': 0,
-    'party': [],
-    'min_damage': 5,  # Minimum damage stat
-    'max_damage': 15,  # Maximum damage stat
-    'defense': 0  # Defense stat
-}
+        'id': player_id,
+        'name': None,
+        'level': 1,
+        'experience': 0,
+        'health': 100,
+        'max_health': 100,
+        'inventory': [],
+        'currency': 0,
+        'party': [],
+        'min_damage': 5,  # Minimum damage stat
+        'max_damage': 15,  # Maximum damage stat
+        'defense': 0  # Defense stat
+    }
     database = load_database()
     database['players'][player_id] = player
     save_database(database)
@@ -69,13 +71,15 @@ def add_item(player_id, item):
     database = load_database()
     player = database['players'].get(player_id)
     if player:
-        inventory = player.setdefault('inventory', [])  # Retrieve or initialize the inventory list
+        inventory = player.setdefault(
+            'inventory', [])  # Retrieve or initialize the inventory list
         inventory.append(item)  # Add the item to the player's inventory
         if item['type'] == 'currency':
             player['currency'] += item['value']  # Update the currency value
         elif item['type'] in ['weapon', 'armor']:
             equip_item(player_id, item)  # Equip the item
         save_database(database)
+
 
 def remove_item(player_id, item):
     player = get_player(player_id)
@@ -84,6 +88,7 @@ def remove_item(player_id, item):
             inv_item for inv_item in player['inventory'] if inv_item != item
         ]
         save_database(load_database())
+
 
 def equip_item(player_id, item):
     player = get_player(player_id)
@@ -94,6 +99,7 @@ def equip_item(player_id, item):
         elif item_type == 'armor':
             player['defense'] += item.get('value', 0)
         save_database(load_database())
+
 
 @bot.event
 async def on_ready():
@@ -106,7 +112,8 @@ async def on_ready():
 async def on_command_error(ctx, error):
     # Send a DM notification to the bot owner about the error
     owner = await bot.application_info()
-    await owner.owner.send(f'An error occurred while executing the command: {str(error)}')
+    await owner.owner.send(
+        f'An error occurred while executing the command: {str(error)}')
 
 
 @bot.event
@@ -120,14 +127,17 @@ async def on_shutdown():
 async def on_error(event, *args, **kwargs):
     # Send a DM notification to the bot owner about the error in the Python script
     owner = await bot.application_info()
-    await owner.owner.send(f'An error occurred in the Python script:\nEvent: {event}\nArgs: {args}\nKwargs: {kwargs}')
+    await owner.owner.send(
+        f'An error occurred in the Python script:\nEvent: {event}\nArgs: {args}\nKwargs: {kwargs}'
+    )
 
 
 @bot.event
 async def on_disconnect():
     # Send a DM notification to the bot owner when the bot disconnects from the server
     owner = await bot.application_info()
-    await owner.owner.send(f'{bot.user.name} has disconnected from the server.')
+    await owner.owner.send(f'{bot.user.name} has disconnected from the server.'
+                           )
 
 
 @bot.command(name='create')
@@ -145,70 +155,87 @@ async def battle(ctx):
     player_id = str(ctx.author.id)
     player = get_player(player_id)
     if player:
-        monsters = [
-            {
-                'name': 'Goblin',
-                'level': 3,
-                'health': 50,
-                'damage': 8,
-                'max_health': 50,
-                'loot': [
-                    {
-                        'name': 'Gold',
-                        'type': 'currency',
-                        'value': 50
-                    }
-                ]
-            },
-            {
-                'name': 'Orc',
-                'level': 5,
-                'health': 80,
-                'damage': 12,
-                'max_health': 80,
-                'loot': [
-                    {
-                        'name': 'Gold',
-                        'type': 'currency',
-                        'value': 80
-                    }
-                ]
-            }
-        ]
+        monsters = [{
+            'name': 'Goblin',
+            'level': 3,
+            'health': 50,
+            'min_damage': 5,
+            'max_damage': 9,
+            'max_health': 50,
+            'loot': [{
+                'name': 'Gold',
+                'type': 'currency',
+                'value': 50
+            }]
+        }, {
+            'name': 'Orc',
+            'level': 5,
+            'health': 80,
+            'min_damage': 9,
+            'max_damage': 14,
+            'max_health': 80,
+            'loot': [{
+                'name': 'Gold',
+                'type': 'currency',
+                'value': 80
+            }]
+        }]
 
         # Select a random monster from the list
         monster = random.choice(monsters)
 
         party_members = [player_id] + player.get('party', [])
 
-        party_rewards = {member_id: {'damage': 0, 'rewards': []} for member_id in party_members}
+        party_rewards = {
+            member_id: {
+                'damage': 0,
+                'rewards': []
+            }
+            for member_id in party_members
+        }
 
         while player['health'] > 0 and monster['health'] > 0:
             for member_id in party_members:
-              member = get_player(member_id)
-              if member:
-                member_damage = random.randint(monster['min_damage'], monster['max_damage'])
-                member_damage -= member['defense']
-                member_damage = max(0, member_damage)  # Ensure damage doesn't go below zero
-                member['health'] -= member_damage
-              party_rewards[member_id]['damage'] += member_damage
+                member = get_player(member_id)
+                if member:
+                    member_damage = random.randint(monster['min_damage'],
+                                                   monster['max_damage'])
+                    member_damage -= member['defense']
+                    member_damage = max(
+                        0,
+                        member_damage)  # Ensure damage doesn't go below zero
+                    member['health'] -= member_damage
+                party_rewards[member_id]['damage'] += member_damage
 
-            player_health_percentage = player['health'] / player['max_health'] * 100
-            monster_health_percentage = monster['health'] / monster['max_health'] * 100
+            player_health_percentage = player['health'] / player[
+                'max_health'] * 100
+            monster_health_percentage = monster['health'] / monster[
+                'max_health'] * 100
 
-            await ctx.send(f'{ctx.author.mention}\'s Health: {player_health_percentage:.2f}%')
-            await asyncio.sleep(1)  # Delay for 1 second before sending the next message
-            await ctx.send(f'{monster["name"]}\'s Health: {monster_health_percentage:.2f}%')
-            await asyncio.sleep(1)  # Delay for 1 second before sending the next message
+            await ctx.send(
+                f'{ctx.author.mention}\'s Health: {player_health_percentage:.2f}%'
+            )
+            await asyncio.sleep(
+                1)  # Delay for 1 second before sending the next message
+            await ctx.send(
+                f'{monster["name"]}\'s Health: {monster_health_percentage:.2f}%'
+            )
+            await asyncio.sleep(
+                1)  # Delay for 1 second before sending the next message
 
         if player['health'] <= 0:
-            await ctx.send(f'<@{player_id}>, you were defeated by the {monster["name"]}!')
+            await ctx.send(
+                f'<@{player_id}>, you were defeated by the {monster["name"]}!')
             for member_id in party_members:
-                await ctx.send(f'<@{member_id}>, your party member {ctx.author.mention} was defeated in battle!')
+                await ctx.send(
+                    f'<@{member_id}>, your party member {ctx.author.mention} was defeated in battle!'
+                )
         else:
-            await ctx.send(f'<@{player_id}>, you defeated the {monster["name"]}!')
+            await ctx.send(
+                f'<@{player_id}>, you defeated the {monster["name"]}!')
 
-            total_damage = sum(party_rewards[member_id]['damage'] for member_id in party_members)
+            total_damage = sum(party_rewards[member_id]['damage']
+                               for member_id in party_members)
             total_rewards = []
 
             for member_id, rewards in party_rewards.items():
@@ -218,7 +245,8 @@ async def battle(ctx):
                     member_share = int(member_damage / total_damage * 100)
                     member_rewards = rewards['rewards']
                     for reward in monster['loot']:
-                        reward_value = int(reward['value'] * member_share / 100)
+                        reward_value = int(reward['value'] * member_share /
+                                           100)
                         if reward_value > 0:
                             reward_copy = reward.copy()
                             reward_copy['value'] = reward_value
@@ -234,25 +262,34 @@ async def battle(ctx):
                     member_rewards = rewards['rewards']
                     if member_rewards:
                         embed = discord.Embed(
-                            title=f'Rewards for <@{member_id}>', color=discord.Color.green())
+                            title=f'Rewards for <@{member_id}>',
+                            color=discord.Color.green())
                         for reward in member_rewards:
                             reward_name = reward.get('name', 'Unnamed Reward')
                             reward_value = reward.get('value', 0)
-                            embed.add_field(name=reward_name, value=f'Value: {reward_value}', inline=False)
+                            embed.add_field(name=reward_name,
+                                            value=f'Value: {reward_value}',
+                                            inline=False)
                         await ctx.send(embed=embed)
 
             if total_rewards:
                 await ctx.send("Total Rewards:")
-                embed = discord.Embed(title='Total Rewards', color=discord.Color.green())
+                embed = discord.Embed(title='Total Rewards',
+                                      color=discord.Color.green())
                 for reward in total_rewards:
                     reward_name = reward.get('name', 'Unnamed Reward')
                     reward_value = reward.get('value', 0)
-                    embed.add_field(name=reward_name, value=f'Value: {reward_value}', inline=False)
+                    embed.add_field(name=reward_name,
+                                    value=f'Value: {reward_value}',
+                                    inline=False)
                 await ctx.send(embed=embed)
 
             save_database(load_database())
     else:
-        await ctx.send(f'<@{player_id}>, you need to create a character using the `create` command first!')
+        await ctx.send(
+            f'<@{player_id}>, you need to create a character using the `create` command first!'
+        )
+
 
 @bot.command(name='use')
 async def use(ctx, item_name):
@@ -267,13 +304,19 @@ async def use(ctx, item_name):
                         player['health'] = player['max_health']
                     player['inventory'].remove(item)
                     save_database(load_database())
-                    await ctx.send(f'<@{player_id}>, you used the {item_name} and restored {item["value"]} health!')
+                    await ctx.send(
+                        f'<@{player_id}>, you used the {item_name} and restored {item["value"]} health!'
+                    )
                     return
-            await ctx.send(f'<@{player_id}>, you do not have the {item_name} in your inventory or it cannot be used for healing.')
+            await ctx.send(
+                f'<@{player_id}>, you do not have the {item_name} in your inventory or it cannot be used for healing.'
+            )
         else:
             await ctx.send(f'<@{player_id}>, your inventory is empty!')
     else:
-        await ctx.send(f'<@{player_id}>, you need to create a character first!')
+        await ctx.send(f'<@{player_id}>, you need to create a character first!'
+                       )
+
 
 @bot.command(name='delete')
 async def delete(ctx):
@@ -286,46 +329,43 @@ async def delete(ctx):
     else:
         await ctx.send(f'<@{player_id}>, you do not have a character!')
 
+
 @bot.command(name='shop')
 async def shop(ctx):
     player_id = ctx.author.id
-    player = get_player(player_id)  # Assuming there's a function to get the player data
+    player = get_player(
+        player_id)  # Assuming there's a function to get the player data
 
     if player:
-        items = [
-            {
-                'name': 'Health Potion',
-                'type': 'healing',
-                'value': 20,
-                'price': 50
-            },
-            {
-                'name': 'Super Potion',
-                'type': 'healing',
-                'value': 50,
-                'price': 100
-            },
-            {
-                'name': 'Mega Potion',
-                'type': 'healing',
-                'value': 100,
-                'price': 200
-            },
-            {
-                'name': 'Sword of Strength',
-                'type': 'weapon',
-                'value': 5,
-                'price': 500
-            },
-            {
-                'name': 'Shield of Defense',
-                'type': 'armor',
-                'value': 10,
-                'price': 500
-            }
-        ]
-        embed = discord.Embed(
-            title='Shop', description='Available items for purchase:', color=discord.Color.gold())
+        items = [{
+            'name': 'Health Potion',
+            'type': 'healing',
+            'value': 20,
+            'price': 50
+        }, {
+            'name': 'Super Potion',
+            'type': 'healing',
+            'value': 50,
+            'price': 100
+        }, {
+            'name': 'Mega Potion',
+            'type': 'healing',
+            'value': 100,
+            'price': 200
+        }, {
+            'name': 'Sword of Strength',
+            'type': 'weapon',
+            'value': 5,
+            'price': 500
+        }, {
+            'name': 'Shield of Defense',
+            'type': 'armor',
+            'value': 10,
+            'price': 500
+        }]
+        embed = discord.Embed(title='Shop',
+                              description='Available items for purchase:',
+                              color=discord.Color.gold())
 
         for item in items:
             item_name = item.get('name', 'Unnamed Item')
@@ -333,7 +373,8 @@ async def shop(ctx):
             item_price = item.get('price', 0)
             embed.add_field(name=item_name, value=f'Type: {item_type}\nPrice')
         await ctx.send(embed=embed)
-        await ctx.send(f'<@{player_id}>, type the name of the item you want to buy.')
+        await ctx.send(
+            f'<@{player_id}>, type the name of the item you want to buy.')
 
         def check(m):
             return m.author == ctx.author
@@ -341,7 +382,9 @@ async def shop(ctx):
         try:
             message = await bot.wait_for('message', check=check, timeout=30.0)
         except asyncio.TimeoutError:
-            await ctx.send(f'<@{player_id}>, you took too long to respond. The shop session has ended.')
+            await ctx.send(
+                f'<@{player_id}>, you took too long to respond. The shop session has ended.'
+            )
             return
 
         item_name = message.content.strip()
@@ -350,28 +393,42 @@ async def shop(ctx):
             if item['name'].lower() == item_name.lower():
                 item_price = item.get('price', 0)
                 if player['currency'] >= item_price:
-                    add_item(player_id, item)  # Assuming there's a function to add an item to the player's inventory
+                    add_item(
+                        player_id, item
+                    )  # Assuming there's a function to add an item to the player's inventory
                     player['currency'] -= item_price
-                    save_database(load_database())  # Assuming there's a function to save the player's data
-                    await ctx.send(f'<@{player_id}>, you bought the {item_name} for {item_price} currency.')
+                    save_database(load_database(
+                    ))  # Assuming there's a function to save the player's data
+                    await ctx.send(
+                        f'<@{player_id}>, you bought the {item_name} for {item_price} currency.'
+                    )
                 else:
-                    await ctx.send(f'<@{player_id}>, you do not have enough currency to buy the {item_name}.')
+                    await ctx.send(
+                        f'<@{player_id}>, you do not have enough currency to buy the {item_name}.'
+                    )
                 return
 
-        await ctx.send(f'<@{player_id}>, the {item_name} is not available in the shop.')
+        await ctx.send(
+            f'<@{player_id}>, the {item_name} is not available in the shop.')
     else:
-        await ctx.send(f'<@{player_id}>, you need to create a character first!')
+        await ctx.send(f'<@{player_id}>, you need to create a character first!'
+                       )
+
 
 @bot.command()
 async def profile(ctx):
     player_id = str(ctx.author.id)
     player = get_player(player_id)
     if player:
-        embed = Embed(title="Your Profile", color=discord.Color.blue())
+        embed = embed(title="Your Profile", color=discord.Color.blue())
         embed.add_field(name="Name", value=player['name'], inline=True)
         embed.add_field(name="Level", value=player['level'], inline=True)
-        embed.add_field(name="Experience", value=player['experience'], inline=True)
-        embed.add_field(name="Health", value=f"{player['health']}/{player['max_health']}", inline=True)
+        embed.add_field(name="Experience",
+                        value=player['experience'],
+                        inline=True)
+        embed.add_field(name="Health",
+                        value=f"{player['health']}/{player['max_health']}",
+                        inline=True)
         embed.add_field(name="Currency", value=player['currency'], inline=True)
         if player['inventory']:
             inventory = ', '.join(player['inventory'])
@@ -381,6 +438,7 @@ async def profile(ctx):
         await ctx.send(embed=embed)
     else:
         await ctx.send("You are not registered as a player.")
+
 
 async def party(ctx, player_id, member_id):
     database = load_database()
@@ -396,8 +454,10 @@ async def party(ctx, player_id, member_id):
             player['party'].append(member_id)
             database['players'][player_id] = player
             save_database(database)
-            await ctx.send(f"<@{member_id}> has joined <@{player_id}>'s party.")
+            await ctx.send(f"<@{member_id}> has joined <@{player_id}>'s party."
+                           )
     else:
         await ctx.send("Invalid player IDs.")
+
 
 bot.run(os.environ['DISCORD_TOKEN'])
